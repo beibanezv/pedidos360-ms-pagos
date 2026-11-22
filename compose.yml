@@ -1,0 +1,18 @@
+name: p360-pagos
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pedidos360_pagos
+      POSTGRES_USER: ${DATASOURCE_USER:-pedidos360}
+      POSTGRES_PASSWORD: ${DATASOURCE_PASSWORD:-pedidos360}
+    ports: ["127.0.0.1:5439:5432"]
+    volumes: [pagos-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+volumes:
+  pagos-data:
