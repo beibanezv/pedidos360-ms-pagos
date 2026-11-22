@@ -69,6 +69,21 @@ class PagoServicePostgresTest {
     assertThat(repository.count()).isEqualTo(1);
   }
 
+  @Test
+  void losIntentosExpiranYLosBloqueosNoExtiendenLaVentana() {
+    repository.deleteAllInBatch();
+    var ahora = Instant.parse("2026-11-23T12:00:00Z");
+    var tarjeta = PagoService.TarjetaDemo.RECHAZO;
+    for (int i = 0; i < 3; i++) {
+      repository.save(new Pago("comprador", UUID.randomUUID(), 18990L, tarjeta,
+          PagoService.Resultado.RECHAZADO, ahora.minusSeconds(10)));
+      repository.save(new Pago("comprador", UUID.randomUUID(), 18990L, tarjeta,
+          PagoService.Resultado.BLOQUEADO, ahora.minusSeconds(1)));
+    }
+    assertThat(service.registrar("comprador", UUID.randomUUID(), 18990L, tarjeta).getResultado())
+        .isEqualTo(PagoService.Resultado.RECHAZADO);
+  }
+
   @TestConfiguration
   static class FixedClock {
     @Bean Clock clock() { return Clock.fixed(Instant.parse("2026-11-23T12:00:00Z"), ZoneOffset.UTC); }
