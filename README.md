@@ -14,9 +14,10 @@ cliente ni cobros reales. El cuarto intento procesado contra la misma tarjeta
 de prueba en una ventana móvil de diez segundos se bloquea y registra una
 alerta. Los bloqueos no prolongan la ventana. Si la orden ya está pagada, la
 respuesta devuelve la primera aprobación sin volver a procesarla. Estos pagos
-no cambian el flujo anterior de registro de orden, stock y correo. No conectes
-una pasarela de cobro real sin recalcular el precio desde el catálogo en checkout;
-los datos de las líneas del carrito anterior no son una fuente confiable de precio.
+no cambian el flujo de registro de orden, stock y correo. Usa órdenes nuevas
+para la demo: Carrito EP5 toma los precios vigentes del catálogo al registrar
+la orden; no recalcula las órdenes históricas. El simulador no está habilitado
+para cobros reales.
 
 Kafka recibe cada intento persistido en `p360.pagos.v1`; el publicador espera
 el ACK y reintenta filas pendientes. Si se pierde el ACK tras la escritura,
