@@ -16,6 +16,7 @@ interface PagoRepository extends JpaRepository<Pago, UUID> {
   long countByTarjetaAndOcurrioEnAfterAndResultadoNot(PagoService.TarjetaDemo tarjeta, Instant desde,
       PagoService.Resultado resultado);
   List<Pago> findTop20ByPublicadoEnIsNullOrderByOcurrioEnAscIdAsc();
+  Optional<Pago> findFirstByTokenWebpay(String tokenWebpay);
 
   @Modifying @Transactional
   @Query("update Pago p set p.publicadoEn = :cuando where p.id = :id and p.publicadoEn is null")

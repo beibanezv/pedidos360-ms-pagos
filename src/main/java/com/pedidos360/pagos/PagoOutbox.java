@@ -24,6 +24,8 @@ class PagoOutbox {
   @Scheduled(fixedDelay = 1500)
   void enviarPendientes() {
     for (Pago pago : repository.findTop20ByPublicadoEnIsNullOrderByOcurrioEnAscIdAsc()) {
+      // Un pago iniciado en Webpay aún no tiene resultado: se publica solo tras el commit.
+      if (pago.getResultado() == PagoService.Resultado.PENDIENTE) continue;
       var evento = pago.evento();
       try {
         kafka.send("p360.pagos.v1", evento.usuarioId(), evento).get(13, TimeUnit.SECONDS);

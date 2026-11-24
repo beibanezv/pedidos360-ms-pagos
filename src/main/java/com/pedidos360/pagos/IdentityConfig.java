@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,7 +30,11 @@ class IdentityConfig {
   SecurityFilterChain security(HttpSecurity http) throws Exception {
     return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+        .authorizeHttpRequests(a -> a
+            // Transbank devuelve el navegador con un POST de formulario, sin JWT.
+            .requestMatchers(HttpMethod.POST, "/pagos/webpay/retorno").permitAll()
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .anyRequest().authenticated())
         .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults())).build();
   }
 
@@ -38,7 +43,7 @@ class IdentityConfig {
       @Value("${CORS_ALLOWED_ORIGINS:http://localhost:4200}") List<String> origins) {
     var cors = new CorsConfiguration();
     cors.setAllowedOrigins(origins);
-    cors.setAllowedMethods(List.of("GET", "POST"));
+    cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
     cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/pagos/**", cors);

@@ -1,0 +1,85 @@
+package com.pedidos360.pagos;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.server.ResponseStatusException;
+
+class PagoServiceWebpayTest {
+  private final PagoRepository repository = mock(PagoRepository.class);
+  private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+  private final Clock clock = Clock.fixed(Instant.parse("2026-11-24T12:00:00Z"), ZoneOffset.UTC);
+  private final PagoService service = new PagoService(repository, jdbc, clock);
+
+  private void sinBloqueo() {
+    when(repository.findFirstByOrdenIdAndUsuarioIdAndResultado(any(), any(), any())).thenReturn(Optional.empty());
+    when(repository.countByTarjetaAndOcurrioEnAfterAndResultadoNot(any(), any(), any())).thenReturn(0L);
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+  }
+
+  @Test
+  void guardaPagoPendienteConElTokenDeWebpay() {
+    sinBloqueo();
+    UUID orden = UUID.randomUUID();
+
+    var pago = service.iniciarWebpay("cliente", orden, 18990L, "token-abc");
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
+    assertThat(pago.getTokenWebpay()).isEqualTo("token-abc");
+    assertThat(pago.getBuyOrder()).isEqualTo(orden.toString());
+  }
+
+  @Test
+  void bloqueaAlCuartoIntentoEnDiezSegundos() {
+    UUID orden = UUID.randomUUID();
+    when(repository.countByTarjetaAndOcurrioEnAfterAndResultadoNot(any(), any(), any())).thenReturn(3L);
+
+    assertThatThrownBy(() -> service.verificar("cliente", orden, 18990L))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void rechazaRespuestaIncoherenteConElPagoGuardado() {
+    UUID orden = UUID.randomUUID();
+    var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.PENDIENTE, clock.instant());
+    pendiente.setTokenWebpay("token-abc");
+    pendiente.setBuyOrder(orden.toString());
+    when(repository.findFirstByTokenWebpay("token-abc")).thenReturn(Optional.of(pendiente));
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var pago = service.confirmarWebpay("token-abc",
+        new WebpayClient.Confirmar("AUTHORIZED", UUID.randomUUID().toString(), "cliente", 18990L));
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.RECHAZADO);
+  }
+
+  @Test
+  void confirmaRespuestaCoherente() {
+    UUID orden = UUID.randomUUID();
+    var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.PENDIENTE, clock.instant());
+    pendiente.setTokenWebpay("token-abc");
+    pendiente.setBuyOrder(orden.toString());
+    when(repository.findFirstByTokenWebpay("token-abc")).thenReturn(Optional.of(pendiente));
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var pago = service.confirmarWebpay("token-abc",
+        new WebpayClient.Confirmar("AUTHORIZED", orden.toString(), "cliente", 18990L));
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.APROBADO);
+  }
+}
