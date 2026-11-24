@@ -68,8 +68,10 @@ class PagoController {
     long total = ordenes.total(solicitud.ordenId(), jwt);
     // Antifraude primero: no se crea una transaccion en Transbank si el cliente esta bloqueado.
     service.verificar(usuario, solicitud.ordenId(), total);
-    var creada = webpay.crear(solicitud.ordenId().toString(), usuario, total, returnUrl);
-    service.iniciarWebpay(usuario, solicitud.ordenId(), total, creada.token());
+    // Transbank limita buyOrder a 26 caracteres: ID corto y determinista desde la orden.
+    String buyOrder = "TX" + solicitud.ordenId().toString().replace("-", "").substring(0, 22);
+    var creada = webpay.crear(buyOrder, usuario, total, returnUrl);
+    service.iniciarWebpay(usuario, solicitud.ordenId(), total, creada.token(), buyOrder);
     return ResponseEntity.ok(Map.of("url", creada.url(), "token", creada.token()));
   }
 

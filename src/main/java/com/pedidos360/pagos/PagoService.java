@@ -62,12 +62,12 @@ class PagoService {
 
   /** Guarda el pago como PENDIENTE: aún no debe publicarse a Kafka ni contar como aprobado. */
   @Transactional
-  public Pago iniciarWebpay(String usuario, UUID orden, long total, String tokenWebpay) {
+  public Pago iniciarWebpay(String usuario, UUID orden, long total, String tokenWebpay, String buyOrder) {
     verificar(usuario, orden, total);
     bloquear(361, TarjetaDemo.WEBPAY.ordinal());
     var pago = new Pago(usuario, orden, total, TarjetaDemo.WEBPAY, Resultado.PENDIENTE, clock.instant());
     pago.setTokenWebpay(tokenWebpay);
-    pago.setBuyOrder(orden.toString());
+    pago.setBuyOrder(buyOrder);
     return repository.save(pago);
   }
 

@@ -34,11 +34,11 @@ class PagoServiceWebpayTest {
     sinBloqueo();
     UUID orden = UUID.randomUUID();
 
-    var pago = service.iniciarWebpay("cliente", orden, 18990L, "token-abc");
+    var pago = service.iniciarWebpay("cliente", orden, 18990L, "token-abc", "TX1234567890abcdef");
 
     assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
     assertThat(pago.getTokenWebpay()).isEqualTo("token-abc");
-    assertThat(pago.getBuyOrder()).isEqualTo(orden.toString());
+    assertThat(pago.getBuyOrder()).isEqualTo("TX1234567890abcdef");
   }
 
   @Test

@@ -2,6 +2,7 @@ package com.pedidos360.pagos;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -65,7 +66,7 @@ class PagoControllerTest {
   void iniciaPagoConWebpayConElTotalDeLaOrden() throws Exception {
     UUID orden = UUID.randomUUID();
     when(ordenes.total(any(), any())).thenReturn(18990L);
-    when(webpay.crear(eq(orden.toString()), anyString(), eq(18990L), anyString()))
+    when(webpay.crear(argThat(id -> id.startsWith("TX") && id.length() <= 26), anyString(), eq(18990L), anyString()))
         .thenReturn(new WebpayClient.Crear("token-123", "https://webpay.test/pagar"));
 
     mvc.perform(post("/pagos/webpay/iniciar").with(jwt()).contentType("application/json")
