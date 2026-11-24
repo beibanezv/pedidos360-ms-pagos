@@ -89,6 +89,17 @@ class PagoService {
     return repository.save(pago);
   }
 
+  /** Si Transbank no confirma, el pago no puede quedar pendiente para siempre. */
+  @Transactional
+  public void fallarWebpay(String token) {
+    repository.findFirstByTokenWebpay(token).ifPresent(pago -> {
+      if (pago.getResultado() == Resultado.PENDIENTE) {
+        pago.setResultado(Resultado.RECHAZADO);
+        repository.save(pago);
+      }
+    });
+  }
+
   private void bloquear(int dominio, int clave) {
     jdbc.query("select pg_advisory_xact_lock(?, ?)", rs -> {}, dominio, clave);
   }

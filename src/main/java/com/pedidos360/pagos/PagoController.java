@@ -92,6 +92,13 @@ class PagoController {
       }
     } catch (Exception error) {
       log.warn("Retorno de Webpay invalido: {}", error.getMessage());
+      if (tokenWs != null && !tokenWs.isBlank()) {
+        try {
+          service.fallarWebpay(tokenWs);
+        } catch (Exception fallback) {
+          log.warn("No se pudo marcar como rechazado el pago {}", tokenWs);
+        }
+      }
     }
     String destino = frontendUrl + "/pago/resultado?resultado=" + resultado
         + (ordenId == null ? "" : "&ordenId=" + ordenId);
