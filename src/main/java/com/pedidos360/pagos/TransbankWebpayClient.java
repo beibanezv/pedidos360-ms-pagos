@@ -31,8 +31,8 @@ class TransbankWebpayClient implements WebpayClient {
   public Confirmar confirmar(String token) {
     try {
       var respuesta = transaction.commit(token);
-      return new Confirmar(respuesta.getStatus(), respuesta.getBuyOrder(), respuesta.getSessionId(),
-          Math.round(respuesta.getAmount()));
+      return new Confirmar(respuesta.getStatus(), respuesta.getResponseCode(), respuesta.getBuyOrder(),
+          respuesta.getSessionId(), Math.round(respuesta.getAmount()));
     } catch (Exception error) {
       throw new IllegalStateException("No se pudo confirmar la transaccion con Webpay", error);
     }

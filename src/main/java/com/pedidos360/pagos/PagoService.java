@@ -80,8 +80,9 @@ class PagoService {
     boolean coherente = pago.getBuyOrder().equals(respuesta.buyOrder())
         && pago.getUsuarioId().equals(respuesta.sessionId())
         && pago.getTotalClp() == respuesta.amount();
-    if (!coherente || "INITIALIZED".equals(respuesta.status())) {
-      // G0 §7.3: incoherencia o resultado aún abierto no autorizan un rechazo durable.
+    boolean autorizadoIncoherente = "AUTHORIZED".equals(respuesta.status()) && respuesta.responseCode() != 0;
+    if (!coherente || "INITIALIZED".equals(respuesta.status()) || autorizadoIncoherente) {
+      // G0 §7.3: incoherencia, resultado abierto o código negativo con AUTHORIZED no cierran el pago.
       log.warn("Respuesta de Webpay no definitiva para el pago {}: se conserva PENDIENTE", pago.getId());
       return pago;
     }

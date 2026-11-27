@@ -101,6 +101,22 @@ class PagoServiceWebpayTest {
   }
 
   @Test
+  void authorizedConResponseCodeDistintoDeCeroNoAprueba() {
+    UUID orden = UUID.randomUUID();
+    var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.PENDIENTE, clock.instant());
+    pendiente.setTokenWebpay("token-abc");
+    pendiente.setBuyOrder(orden.toString());
+    when(repository.findFirstByTokenWebpay("token-abc")).thenReturn(Optional.of(pendiente));
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var pago = service.confirmarWebpay("token-abc",
+        new WebpayClient.Confirmar("AUTHORIZED", (byte) 1, orden.toString(), "cliente", 18990L));
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
+  }
+
+  @Test
   void confirmaRespuestaCoherente() {
     UUID orden = UUID.randomUUID();
     var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
