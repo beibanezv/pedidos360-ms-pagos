@@ -66,14 +66,20 @@ class PagoController {
   ResponseEntity<?> iniciarWebpay(@Valid @RequestBody SolicitudWebpay solicitud,
       @AuthenticationPrincipal Jwt jwt) {
     String usuario = IdentityConfig.usuario(jwt);
-    long total = ordenes.total(solicitud.ordenId(), jwt);
-    // Antifraude primero: no se crea una transaccion en Transbank si el cliente esta bloqueado.
+    UUID intentoId = solicitud.intentoId() == null ? UUID.randomUUID() : solicitud.intentoId();
+    service.preparar(intentoId, usuario, solicitud.ordenId());
+    // Claim autenticado y atómico: el total viene de la fila bloqueada, nunca del body.
+    long total = ordenes.claim(solicitud.ordenId(), jwt, intentoId);
+    // Antifraude antes de llamar al proveedor.
     service.verificar(usuario, solicitud.ordenId(), total);
+    service.claimada(intentoId, total);
+    service.creando(intentoId);
     // Transbank limita buyOrder a 26 caracteres: ID corto y determinista desde la orden.
     String buyOrder = "TX" + solicitud.ordenId().toString().replace("-", "").substring(0, 22);
     var creada = webpay.crear(buyOrder, usuario, total, returnUrl);
-    service.iniciarWebpay(usuario, solicitud.ordenId(), total, creada.token(), buyOrder);
-    return ResponseEntity.ok(Map.of("url", creada.url(), "token", creada.token()));
+    service.creada(intentoId, creada.token(), buyOrder);
+    return ResponseEntity.ok(Map.of("url", creada.url(), "token", creada.token(),
+        "intentoId", intentoId.toString()));
   }
 
   /**
@@ -112,6 +118,6 @@ class PagoController {
   }
 
   record Solicitud(@NotNull UUID ordenId, @NotNull PagoService.TarjetaDemo tarjetaDemo) {}
-  record SolicitudWebpay(@NotNull UUID ordenId) {}
+  record SolicitudWebpay(@NotNull UUID ordenId, UUID intentoId) {}
   record PagoDto(UUID pagoId, UUID ordenId, PagoService.Resultado resultado, long totalClp, Instant ocurrioEn) {}
 }

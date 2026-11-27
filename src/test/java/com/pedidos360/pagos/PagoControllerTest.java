@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -63,8 +65,9 @@ class PagoControllerTest {
   }
 
   @Test
-  void iniciaPagoConWebpayConElTotalDeLaOrden() throws Exception {
+  void iniciaPagoConWebpayTrasClaimAtomico() throws Exception {
     UUID orden = UUID.randomUUID();
+    when(ordenes.claim(any(), any(), any())).thenReturn(18990L);
     when(ordenes.total(any(), any())).thenReturn(18990L);
     when(webpay.crear(argThat(id -> id.startsWith("TX") && id.length() <= 26), anyString(), eq(18990L), anyString()))
         .thenReturn(new WebpayClient.Crear("token-123", "https://webpay.test/pagar"));
@@ -73,13 +76,19 @@ class PagoControllerTest {
         .content("{\"ordenId\":\"" + orden + "\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.token").value("token-123"))
-        .andExpect(jsonPath("$.url").value("https://webpay.test/pagar"));
+        .andExpect(jsonPath("$.url").value("https://webpay.test/pagar"))
+        .andExpect(jsonPath("$.intentoId").exists());
+    verify(service).preparar(any(), anyString(), any());
+    verify(service).claimada(any(), eq(18990L));
+    verify(service).creando(any());
+    verify(service).creada(any(), eq("token-123"), anyString());
+    verify(ordenes, never()).total(any(), any());
   }
 
   @Test
   void noCreaTransaccionSiElClienteEstaBloqueado() throws Exception {
     UUID orden = UUID.randomUUID();
-    when(ordenes.total(any(), any())).thenReturn(18990L);
+    when(ordenes.claim(any(), any(), any())).thenReturn(18990L);
     org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
         .when(service).verificar(anyString(), any(), anyLong());
 

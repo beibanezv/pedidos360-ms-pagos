@@ -73,6 +73,41 @@ class PagoService {
     return repository.save(pago);
   }
 
+  /** PRE_CLAIM: se persiste antes de pedir el claim; sin JWT guardado ni reanudación automática. */
+  @Transactional
+  public Pago preparar(UUID intentoId, String usuario, UUID orden) {
+    var pago = new Pago(intentoId, usuario, orden, 0L, TarjetaDemo.WEBPAY, Resultado.PENDIENTE, clock.instant());
+    pago.setFase("PRE_CLAIM");
+    return repository.save(pago);
+  }
+
+  @Transactional
+  public void claimada(UUID intentoId, long total) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setTotalClp(total);
+      pago.setFase("CLAIMADA");
+      repository.save(pago);
+    });
+  }
+
+  @Transactional
+  public void creando(UUID intentoId) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setFase("CREANDO");
+      repository.save(pago);
+    });
+  }
+
+  @Transactional
+  public void creada(UUID intentoId, String tokenWebpay, String buyOrder) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setFase("CREADA");
+      pago.setTokenWebpay(tokenWebpay);
+      pago.setBuyOrder(buyOrder);
+      repository.save(pago);
+    });
+  }
+
   /** Cierra el ciclo del callback de Webpay comprobando que la respuesta corresponda al pago guardado. */
   @Transactional
   public Pago confirmarWebpay(String token, WebpayClient.Confirmar respuesta) {

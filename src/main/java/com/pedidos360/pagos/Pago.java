@@ -26,12 +26,18 @@ class Pago {
   private Instant publicadoEn;
   @Column(unique = true) private String tokenWebpay;
   private String buyOrder;
+  private String fase;
 
   protected Pago() {}
 
   Pago(String usuarioId, UUID ordenId, long totalClp, PagoService.TarjetaDemo tarjeta,
       PagoService.Resultado resultado, Instant ocurrioEn) {
-    this.id = UUID.randomUUID();
+    this(UUID.randomUUID(), usuarioId, ordenId, totalClp, tarjeta, resultado, ocurrioEn);
+  }
+
+  Pago(UUID id, String usuarioId, UUID ordenId, long totalClp, PagoService.TarjetaDemo tarjeta,
+      PagoService.Resultado resultado, Instant ocurrioEn) {
+    this.id = id;
     this.usuarioId = usuarioId;
     this.ordenId = ordenId;
     this.totalClp = totalClp;
@@ -47,10 +53,13 @@ class Pago {
   long getTotalClp() { return totalClp; }
   String getTokenWebpay() { return tokenWebpay; }
   String getBuyOrder() { return buyOrder; }
+  String getFase() { return fase; }
 
   void setTokenWebpay(String tokenWebpay) { this.tokenWebpay = tokenWebpay; }
   void setBuyOrder(String buyOrder) { this.buyOrder = buyOrder; }
   void setResultado(PagoService.Resultado resultado) { this.resultado = resultado; }
+  void setFase(String fase) { this.fase = fase; }
+  void setTotalClp(long totalClp) { this.totalClp = totalClp; }
 
   PagoEvent evento() {
     return new PagoEvent(id, usuarioId, ordenId, resultado, totalClp, ocurrioEn);
