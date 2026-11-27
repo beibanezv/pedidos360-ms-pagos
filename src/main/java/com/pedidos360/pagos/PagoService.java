@@ -20,11 +20,13 @@ class PagoService {
   private final PagoRepository repository;
   private final JdbcTemplate jdbc;
   private final Clock clock;
+  private final PagoResueltoSalidaService salidas;
 
-  PagoService(PagoRepository repository, JdbcTemplate jdbc, Clock clock) {
+  PagoService(PagoRepository repository, JdbcTemplate jdbc, Clock clock, PagoResueltoSalidaService salidas) {
     this.repository = repository;
     this.jdbc = jdbc;
     this.clock = clock;
+    this.salidas = salidas;
   }
 
   @Transactional
@@ -71,6 +73,41 @@ class PagoService {
     return repository.save(pago);
   }
 
+  /** PRE_CLAIM: se persiste antes de pedir el claim; sin JWT guardado ni reanudación automática. */
+  @Transactional
+  public Pago preparar(UUID intentoId, String usuario, UUID orden) {
+    var pago = new Pago(intentoId, usuario, orden, 0L, TarjetaDemo.WEBPAY, Resultado.PENDIENTE, clock.instant());
+    pago.setFase("PRE_CLAIM");
+    return repository.save(pago);
+  }
+
+  @Transactional
+  public void claimada(UUID intentoId, long total) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setTotalClp(total);
+      pago.setFase("CLAIMADA");
+      repository.save(pago);
+    });
+  }
+
+  @Transactional
+  public void creando(UUID intentoId) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setFase("CREANDO");
+      repository.save(pago);
+    });
+  }
+
+  @Transactional
+  public void creada(UUID intentoId, String tokenWebpay, String buyOrder) {
+    repository.findById(intentoId).ifPresent(pago -> {
+      pago.setFase("CREADA");
+      pago.setTokenWebpay(tokenWebpay);
+      pago.setBuyOrder(buyOrder);
+      repository.save(pago);
+    });
+  }
+
   /** Cierra el ciclo del callback de Webpay comprobando que la respuesta corresponda al pago guardado. */
   @Transactional
   public Pago confirmarWebpay(String token, WebpayClient.Confirmar respuesta) {
@@ -80,24 +117,28 @@ class PagoService {
     boolean coherente = pago.getBuyOrder().equals(respuesta.buyOrder())
         && pago.getUsuarioId().equals(respuesta.sessionId())
         && pago.getTotalClp() == respuesta.amount();
-    if (!coherente) {
-      log.warn("Respuesta de Webpay inconsistente para el pago {}: se registra como rechazado", pago.getId());
-      pago.setResultado(Resultado.RECHAZADO);
-    } else {
-      pago.setResultado("AUTHORIZED".equals(respuesta.status()) ? Resultado.APROBADO : Resultado.RECHAZADO);
+    boolean autorizadoIncoherente = "AUTHORIZED".equals(respuesta.status()) && respuesta.responseCode() != 0;
+    if (!coherente || "INITIALIZED".equals(respuesta.status()) || autorizadoIncoherente) {
+      // G0 §7.3: incoherencia, resultado abierto o código negativo con AUTHORIZED no cierran el pago.
+      log.warn("Respuesta de Webpay no definitiva para el pago {}: se conserva PENDIENTE", pago.getId());
+      return pago;
     }
-    return repository.save(pago);
+    pago.setResultado("AUTHORIZED".equals(respuesta.status()) ? Resultado.APROBADO : Resultado.RECHAZADO);
+    var guardado = repository.save(pago);
+    salidas.registrar(guardado);
+    return guardado;
   }
 
-  /** Si Transbank no confirma, el pago no puede quedar pendiente para siempre. */
+  /** status(token) es autoritativo; la decisión se persiste con las mismas reglas del callback. */
   @Transactional
+  public Pago reconciliar(String token, WebpayClient.Estado estado) {
+    return confirmarWebpay(token, new WebpayClient.Confirmar(estado.status(), estado.responseCode(),
+        estado.buyOrder(), estado.sessionId(), estado.amount()));
+  }
+
+  /** G0 caso 10: un error de red no demuestra rechazo; conserva PENDIENTE para reconciliar. */
   public void fallarWebpay(String token) {
-    repository.findFirstByTokenWebpay(token).ifPresent(pago -> {
-      if (pago.getResultado() == Resultado.PENDIENTE) {
-        pago.setResultado(Resultado.RECHAZADO);
-        repository.save(pago);
-      }
-    });
+    log.warn("Resultado de Webpay desconocido: se conserva PENDIENTE para reconciliación");
   }
 
   private void bloquear(int dominio, int clave) {

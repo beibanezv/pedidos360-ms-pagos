@@ -31,8 +31,9 @@ class IdentityConfig {
     return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(a -> a
-            // Transbank devuelve el navegador con un POST de formulario, sin JWT.
+            // Transbank devuelve el navegador con POST o GET, sin JWT.
             .requestMatchers(HttpMethod.POST, "/pagos/webpay/retorno").permitAll()
+            .requestMatchers(HttpMethod.GET, "/pagos/webpay/retorno").permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .anyRequest().authenticated())
         .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults())).build();
