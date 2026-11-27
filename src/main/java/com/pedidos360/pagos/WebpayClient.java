@@ -6,6 +6,8 @@ interface WebpayClient {
 
   Confirmar confirmar(String token);
 
+  Estado estado(String token);
+
   record Crear(String token, String url) {}
 
   record Confirmar(String status, byte responseCode, String buyOrder, String sessionId, long amount) {
@@ -13,4 +15,6 @@ interface WebpayClient {
       this(status, (byte) 0, buyOrder, sessionId, amount);
     }
   }
+
+  record Estado(String status, byte responseCode, String buyOrder, String sessionId, long amount) {}
 }

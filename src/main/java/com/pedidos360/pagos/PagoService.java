@@ -129,6 +129,13 @@ class PagoService {
     return guardado;
   }
 
+  /** status(token) es autoritativo; la decisión se persiste con las mismas reglas del callback. */
+  @Transactional
+  public Pago reconciliar(String token, WebpayClient.Estado estado) {
+    return confirmarWebpay(token, new WebpayClient.Confirmar(estado.status(), estado.responseCode(),
+        estado.buyOrder(), estado.sessionId(), estado.amount()));
+  }
+
   /** G0 caso 10: un error de red no demuestra rechazo; conserva PENDIENTE para reconciliar. */
   public void fallarWebpay(String token) {
     log.warn("Resultado de Webpay desconocido: se conserva PENDIENTE para reconciliación");

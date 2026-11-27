@@ -148,6 +148,24 @@ class PagoServiceWebpayTest {
   }
 
   @Test
+  void statusAutoritativoReconciliaConCorrelaciones() {
+    UUID orden = UUID.randomUUID();
+    var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.PENDIENTE, clock.instant());
+    pendiente.setTokenWebpay("token-abc");
+    pendiente.setBuyOrder("TX123");
+    when(repository.findFirstByTokenWebpay("token-abc")).thenReturn(Optional.of(pendiente));
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(salidas.save(any(PagoResueltoSalida.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var pago = service.reconciliar("token-abc",
+        new WebpayClient.Estado("AUTHORIZED", (byte) 0, "TX123", "cliente", 18990L));
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.APROBADO);
+    verify(salidas).save(any(PagoResueltoSalida.class));
+  }
+
+  @Test
   void confirmaRespuestaCoherente() {
     UUID orden = UUID.randomUUID();
     var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
