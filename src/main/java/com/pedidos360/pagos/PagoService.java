@@ -20,11 +20,13 @@ class PagoService {
   private final PagoRepository repository;
   private final JdbcTemplate jdbc;
   private final Clock clock;
+  private final PagoResueltoSalidaService salidas;
 
-  PagoService(PagoRepository repository, JdbcTemplate jdbc, Clock clock) {
+  PagoService(PagoRepository repository, JdbcTemplate jdbc, Clock clock, PagoResueltoSalidaService salidas) {
     this.repository = repository;
     this.jdbc = jdbc;
     this.clock = clock;
+    this.salidas = salidas;
   }
 
   @Transactional
@@ -87,7 +89,9 @@ class PagoService {
       return pago;
     }
     pago.setResultado("AUTHORIZED".equals(respuesta.status()) ? Resultado.APROBADO : Resultado.RECHAZADO);
-    return repository.save(pago);
+    var guardado = repository.save(pago);
+    salidas.registrar(guardado);
+    return guardado;
   }
 
   /** G0 caso 10: un error de red no demuestra rechazo; conserva PENDIENTE para reconciliar. */

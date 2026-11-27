@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({PagoService.class, PagoServicePostgresTest.FixedClock.class})
+@Import({PagoService.class, PagoResueltoSalidaService.class, PagoServicePostgresTest.FixedClock.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @EnabledIfEnvironmentVariable(named = "P360_TEST_POSTGRES_URL", matches = ".+")
 @TestPropertySource(properties = "spring.datasource.url=${P360_TEST_POSTGRES_URL}")
