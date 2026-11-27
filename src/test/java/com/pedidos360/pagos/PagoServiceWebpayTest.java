@@ -68,7 +68,7 @@ class PagoServiceWebpayTest {
   }
 
   @Test
-  void marcaRechazadoCuandoTransbankNoConfirma() {
+  void timeoutDelProveedorConservaPendiente() {
     UUID orden = UUID.randomUUID();
     var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
         PagoService.Resultado.PENDIENTE, clock.instant());
@@ -79,7 +79,8 @@ class PagoServiceWebpayTest {
 
     service.fallarWebpay("token-abc");
 
-    assertThat(pendiente.getResultado()).isEqualTo(PagoService.Resultado.RECHAZADO);
+    // G0 caso 10: un error de red no demuestra que Transbank rechazó; sin salida Rabbit/Kafka.
+    assertThat(pendiente.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
   }
 
   @Test

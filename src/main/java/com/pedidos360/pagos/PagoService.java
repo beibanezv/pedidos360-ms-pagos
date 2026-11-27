@@ -89,15 +89,9 @@ class PagoService {
     return repository.save(pago);
   }
 
-  /** Si Transbank no confirma, el pago no puede quedar pendiente para siempre. */
-  @Transactional
+  /** G0 caso 10: un error de red no demuestra rechazo; conserva PENDIENTE para reconciliar. */
   public void fallarWebpay(String token) {
-    repository.findFirstByTokenWebpay(token).ifPresent(pago -> {
-      if (pago.getResultado() == Resultado.PENDIENTE) {
-        pago.setResultado(Resultado.RECHAZADO);
-        repository.save(pago);
-      }
-    });
+    log.warn("Resultado de Webpay desconocido: se conserva PENDIENTE para reconciliación");
   }
 
   private void bloquear(int dominio, int clave) {
