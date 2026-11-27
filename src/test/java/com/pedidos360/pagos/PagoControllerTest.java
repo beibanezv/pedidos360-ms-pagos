@@ -105,6 +105,22 @@ class PagoControllerTest {
   }
 
   @Test
+  void retornoPorGetSinJwtConfirmaYRedirigeAlFrontend() throws Exception {
+    UUID orden = UUID.randomUUID();
+    String tokenWs = UUID.randomUUID().toString();
+    var aprobado = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.APROBADO, Instant.now());
+    when(webpay.confirmar(tokenWs))
+        .thenReturn(new WebpayClient.Confirmar("AUTHORIZED", orden.toString(), "cliente", 18990L));
+    when(service.confirmarWebpay(eq(tokenWs), any())).thenReturn(aprobado);
+
+    mvc.perform(get("/pagos/webpay/retorno").param("token_ws", tokenWs))
+        .andExpect(status().isFound())
+        .andExpect(header().string("Location", containsString("resultado=APROBADO")))
+        .andExpect(header().string("Location", containsString(orden.toString())));
+  }
+
+  @Test
   void retornoConTokenDesconocidoRedirigeConError() throws Exception {
     when(webpay.confirmar("basura")).thenThrow(new IllegalStateException("Token no encontrado"));
 

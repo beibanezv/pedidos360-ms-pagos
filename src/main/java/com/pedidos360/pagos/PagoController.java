@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -76,10 +77,10 @@ class PagoController {
   }
 
   /**
-   * Retorno de Transbank: recibe el POST del navegador con token_ws (sin JWT),
+   * Retorno de Transbank: recibe el POST o GET del navegador con token_ws (sin JWT),
    * confirma la transaccion y devuelve al usuario a la SPA con el resultado.
    */
-  @PostMapping("/webpay/retorno")
+  @RequestMapping(value = "/webpay/retorno", method = {RequestMethod.GET, RequestMethod.POST})
   ResponseEntity<Void> retorno(@RequestParam(value = "token_ws", required = false) String tokenWs,
       @RequestParam(value = "TBK_TOKEN", required = false) String tbkToken) {
     String resultado = "ERROR";
