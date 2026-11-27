@@ -52,7 +52,7 @@ class PagoServiceWebpayTest {
   }
 
   @Test
-  void rechazaRespuestaIncoherenteConElPagoGuardado() {
+  void respuestaIncoherenteNoCierraElPago() {
     UUID orden = UUID.randomUUID();
     var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
         PagoService.Resultado.PENDIENTE, clock.instant());
@@ -64,7 +64,24 @@ class PagoServiceWebpayTest {
     var pago = service.confirmarWebpay("token-abc",
         new WebpayClient.Confirmar("AUTHORIZED", UUID.randomUUID().toString(), "cliente", 18990L));
 
-    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.RECHAZADO);
+    // G0 §7.3: discordancia con AUTHORIZED no es un rechazo verificado.
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
+  }
+
+  @Test
+  void inicializadaNoEsResultadoDefinitivo() {
+    UUID orden = UUID.randomUUID();
+    var pendiente = new Pago("cliente", orden, 18990L, PagoService.TarjetaDemo.WEBPAY,
+        PagoService.Resultado.PENDIENTE, clock.instant());
+    pendiente.setTokenWebpay("token-abc");
+    pendiente.setBuyOrder(orden.toString());
+    when(repository.findFirstByTokenWebpay("token-abc")).thenReturn(Optional.of(pendiente));
+    when(repository.save(any(Pago.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var pago = service.confirmarWebpay("token-abc",
+        new WebpayClient.Confirmar("INITIALIZED", orden.toString(), "cliente", 18990L));
+
+    assertThat(pago.getResultado()).isEqualTo(PagoService.Resultado.PENDIENTE);
   }
 
   @Test

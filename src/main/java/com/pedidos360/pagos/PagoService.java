@@ -80,12 +80,12 @@ class PagoService {
     boolean coherente = pago.getBuyOrder().equals(respuesta.buyOrder())
         && pago.getUsuarioId().equals(respuesta.sessionId())
         && pago.getTotalClp() == respuesta.amount();
-    if (!coherente) {
-      log.warn("Respuesta de Webpay inconsistente para el pago {}: se registra como rechazado", pago.getId());
-      pago.setResultado(Resultado.RECHAZADO);
-    } else {
-      pago.setResultado("AUTHORIZED".equals(respuesta.status()) ? Resultado.APROBADO : Resultado.RECHAZADO);
+    if (!coherente || "INITIALIZED".equals(respuesta.status())) {
+      // G0 §7.3: incoherencia o resultado aún abierto no autorizan un rechazo durable.
+      log.warn("Respuesta de Webpay no definitiva para el pago {}: se conserva PENDIENTE", pago.getId());
+      return pago;
     }
+    pago.setResultado("AUTHORIZED".equals(respuesta.status()) ? Resultado.APROBADO : Resultado.RECHAZADO);
     return repository.save(pago);
   }
 
